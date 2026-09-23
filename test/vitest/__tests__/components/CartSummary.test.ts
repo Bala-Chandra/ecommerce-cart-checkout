@@ -28,7 +28,7 @@ describe('CartSummary', () => {
     )
 
     expect(wrapper.text()).toContain(
-      '2099',
+      '₹2,099',
     )
   })
 })
