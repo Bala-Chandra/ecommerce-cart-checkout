@@ -1,48 +1,120 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 
-const AUTH_STORAGE_KEY = 'ecommerce-authenticated'
+const AUTH_KEY = 'ecommerce-auth'
 
-export const useAuthStore = defineStore('auth', () => {
-  const isAuthenticated = ref(
-    localStorage.getItem(AUTH_STORAGE_KEY) === 'true',
+interface PersistedAuth {
+  authenticated: boolean
+  email: string
+}
+
+function isPersistedAuth(
+  value: unknown,
+): value is PersistedAuth {
+  if (
+    typeof value !== 'object' ||
+    value === null
+  ) {
+    return false
+  }
+
+  const candidate = value as Record<
+    string,
+    unknown
+  >
+
+  return (
+    typeof candidate.authenticated === 'boolean' &&
+    typeof candidate.email === 'string'
   )
+}
 
-  const userName = ref(
-    localStorage.getItem('ecommerce-user-name') ?? '',
-  )
+function readAuth(): PersistedAuth {
+  try {
+    const raw = localStorage.getItem(AUTH_KEY)
 
-  const login = (email: string, password: string) => {
-    if (!email.trim() || !password.trim()) {
-      return false
+    if (!raw) {
+      return {
+        authenticated: false,
+        email: '',
+      }
     }
 
-    isAuthenticated.value = true
-    userName.value = email
+    const parsed: unknown = JSON.parse(raw)
 
-    localStorage.setItem(AUTH_STORAGE_KEY, 'true')
-    localStorage.setItem('ecommerce-user-name', email)
+    if (!isPersistedAuth(parsed)) {
+      localStorage.removeItem(AUTH_KEY)
 
-    return true
+      return {
+        authenticated: false,
+        email: '',
+      }
+    }
+
+    return parsed
+  } catch {
+    localStorage.removeItem(AUTH_KEY)
+
+    return {
+      authenticated: false,
+      email: '',
+    }
   }
+}
 
-  const logout = () => {
-    isAuthenticated.value = false
-    userName.value = ''
+export const useAuthStore = defineStore(
+  'auth',
+  () => {
+    const persisted = readAuth()
 
-    localStorage.removeItem(AUTH_STORAGE_KEY)
-    localStorage.removeItem('ecommerce-user-name')
-  }
+    const isAuthenticated = ref(
+      persisted.authenticated,
+    )
 
-  const displayName = computed(() => {
-    return userName.value || 'Guest'
-  })
+    const email = ref(persisted.email)
 
-  return {
-    isAuthenticated,
-    userName,
-    displayName,
-    login,
-    logout,
-  }
-})
+    const displayName = computed(() => {
+      return email.value || 'Guest'
+    })
+
+    function login(
+      value: string,
+      password: string,
+    ): boolean {
+      if (
+        !value.trim() ||
+        !password.trim()
+      ) {
+        return false
+      }
+
+      isAuthenticated.value = true
+      email.value = value.trim()
+
+      localStorage.setItem(
+        AUTH_KEY,
+        JSON.stringify({
+          authenticated: true,
+          email: email.value,
+        }),
+      )
+
+      return true
+    }
+
+    function logout() {
+      isAuthenticated.value = false
+      email.value = ''
+
+      localStorage.removeItem(AUTH_KEY)
+    }
+
+    return {
+      isAuthenticated,
+      email,
+      displayName,
+      login,
+      logout,
+    }
+  },
+)

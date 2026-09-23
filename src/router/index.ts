@@ -1,42 +1,73 @@
-import { defineRouter } from '#q-app';
-import { routes, handleHotUpdate } from 'vue-router/auto-routes';
+import { defineRouter } from '#q-app'
+import { routes, handleHotUpdate } from 'vue-router/auto-routes'
 import {
   createMemoryHistory,
   createRouter,
   createWebHashHistory,
   createWebHistory,
-} from 'vue-router';
+} from 'vue-router'
 
-/*
- * If not building with SSR mode, you can
- * directly export the Router instantiation;
- *
- * The function below can be async too; either use
- * async/await or return a Promise which resolves
- * with the Router instance.
- */
-
-export default defineRouter((/* { store, ssrContext } */) => {
+export default defineRouter(() => {
   const createHistory = import.meta.env.QUASAR_SERVER
     ? createMemoryHistory
     : import.meta.env.QUASAR_VUE_ROUTER_MODE === 'history'
       ? createWebHistory
-      : createWebHashHistory;
+      : createWebHashHistory
 
-  const Router = createRouter({
-    scrollBehavior: () => ({ left: 0, top: 0 }),
+  const router = createRouter({
     routes,
+    scrollBehavior: () => ({
+      left: 0,
+      top: 0,
+    }),
+    history: createHistory(
+      import.meta.env.QUASAR_VUE_ROUTER_BASE,
+    ),
+  })
 
-    // Leave this as is and make changes in quasar.conf.js instead!
-    // quasar.conf.js -> build -> vueRouterMode
-    // quasar.conf.js -> build -> publicPath
-    history: createHistory(import.meta.env.QUASAR_VUE_ROUTER_BASE),
-  });
+  router.beforeEach((to) => {
+    const isPublicRoute = to.path === '/'
 
-  // enable HMR for it
+    if (isPublicRoute) {
+      return true
+    }
+
+    const authStorage = localStorage.getItem(
+      'ecommerce-auth',
+    )
+
+    let authenticated = false
+
+    try {
+      if (authStorage) {
+        const parsed: unknown =
+          JSON.parse(authStorage)
+
+        authenticated =
+          typeof parsed === 'object' &&
+          parsed !== null &&
+          'authenticated' in parsed &&
+          parsed.authenticated === true
+      }
+    } catch {
+      authenticated = false
+    }
+
+    if (!authenticated) {
+      return {
+        path: '/',
+        query: {
+          message: 'Please log in to continue.',
+        },
+      }
+    }
+
+    return true
+  })
+
   if (import.meta.hot) {
-    handleHotUpdate(Router);
+    handleHotUpdate(router)
   }
 
-  return Router;
-});
+  return router
+})
