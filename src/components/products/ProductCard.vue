@@ -6,7 +6,7 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
-  add: [product: Product]
+  'add-to-cart': [product: Product]
 }>()
 </script>
 
@@ -54,7 +54,7 @@ const emit = defineEmits<{
           !product.available ||
           product.inventory === 0
         "
-        @click="emit('add', product)"
+        @click="emit('add-to-cart', product)"
       />
     </q-card-actions>
   </q-card>
